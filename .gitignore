@@ -29,5 +29,8 @@ deploy/.env.aca
 a365.generated.config.json
 a365.config.json
 
+# Teams app package built by `a365 publish` (regenerated per deployment)
+manifest/manifest.zip
+
 # Dev tool directories
 /devTools/

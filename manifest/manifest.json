@@ -1,9 +1,9 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vdevPreview/MicrosoftTeams.schema.json",
-  "id": "d611c4cd-f997-44c9-8d2c-0cb4ee4d3af7",
+  "id": "<<AGENT_BLUEPRINT_APP_ID>>",
   "name": {
-    "short": "dll_agent Blueprint",
-    "full": "dll_agent Blueprint"
+    "short": "Agent Framework A365 Agent",
+    "full": "Agent Framework A365 Agent"
   },
   "description": {
     "short": "A brief description of what your agent does.",
