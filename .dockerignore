@@ -1,0 +1,33 @@
+# Secrets & local env — never bake into the image
+.env
+.env.*
+deploy/.env.aca
+env/.env.*.user
+env/.env.local
+a365.generated.config.json
+a365.config.json
+
+# Nested git worktree (contains a full copy of the repo) and VCS metadata
+.claude
+.git
+.gitignore
+.dockerignore
+
+# Python build artifacts / virtualenvs
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+.venv
+venv
+
+# Tooling / IDE
+.vscode
+devTools
+.DS_Store
+
+# Docs & images not needed at runtime
+*.md
+images

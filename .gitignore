@@ -1,0 +1,33 @@
+# TeamsFx files
+env/.env.*.user
+env/.env.local
+env/.env.sandbox
+.localConfigs
+.localConfigs.playground
+.localConfigs
+.notification.localstore.json
+.notification.playgroundstore.json
+appPackage/build
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# misc
+.env
+deploy/.env.aca
+.deployment
+.DS_Store
+
+# A365 CLI generated config — contains the blueprint client secret in plaintext
+a365.generated.config.json
+a365.config.json
+
+# Dev tool directories
+/devTools/
