@@ -133,13 +133,11 @@ Agent365 agents can send multiple discrete messages in response to a single user
 
 > **Important**: Streaming responses are not supported for agentic identities in Teams. The SDK detects agentic identity and buffers the stream into a single message. Use `send_activity` directly to send immediate, discrete messages to the user.
 
-The sample demonstrates this in `on_message` ([host_agent_server.py](host_agent_server.py)):
+By default the sample sends a **typing indicator only** while it works, then a **single response message** — so the user sees one clean answer per turn. The `on_message` handler ([host_agent_server.py](host_agent_server.py)):
 
 ```python
-# Message 1: immediate ack — reaches the user right away
-await context.send_activity("Got it — working on it…")
-
-# Send typing indicator immediately (awaited so it arrives before the LLM call starts).
+# Signal work-in-progress with a typing indicator only (no text ack), so the
+# user sees a single response message per turn.
 await context.send_activity(Activity(type="typing"))
 
 # Background loop refreshes the "..." animation every ~4s (it times out after ~5s).
@@ -154,8 +152,7 @@ async def _typing_loop():
 typing_task = asyncio.create_task(_typing_loop())
 try:
     response = await agent.process_user_message(...)
-    # Message 2: the LLM response
-    await context.send_activity(response)
+    await context.send_activity(response)   # the single LLM response
 finally:
     typing_task.cancel()
     try:
@@ -164,7 +161,7 @@ finally:
         pass
 ```
 
-Each `send_activity` call produces a separate Teams message. You can call it as many times as needed to send progress updates, partial results, or a final answer.
+Each `send_activity` call produces a separate Teams message. To send progress updates, partial results, or an immediate text acknowledgment, add more `send_activity` calls — for example, insert `await context.send_activity("Got it — working on it…")` before the typing indicator to ack the user right away (this produces a second message per turn).
 
 ### Typing Indicators
 
