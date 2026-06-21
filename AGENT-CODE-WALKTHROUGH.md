@@ -296,6 +296,36 @@ The agent supports multiple authentication modes and extensive configuration opt
 2. Sets up security and authentication
 3. Finds available tools and connects them to the agent
 4. Recreates the agent with the new tools attached
+5. Attaches the tool-call telemetry provider (`_attach_tool_telemetry`) so every tool
+   invocation is traced to Agent 365 (see below)
+
+**Which tool servers**: the set of MCP servers lives in
+[`ToolingManifest.json`](ToolingManifest.json) (used as the discovery fallback). This sample
+registers Mail, Calendar, Me (profile), Teams, and M365 Copilot. Add or remove a server by
+editing that file — and keep the matching `McpServers.*.All` scope grant in sync (see
+`STEP-BY-STEP.md` step 3.3).
+
+### Tool-Call Telemetry (`tool_telemetry.py`)
+
+The A365 MCP tooling extension returns a **`RawAgent`**, the minimal Agent Framework agent
+with **no telemetry layer**, so individual tool calls aren't traced out of the box (the host
+emits the `invoke_agent` root span for the same reason). To make MCP tool calls show up in
+the M365 admin center / Defender agent-activity views, `tool_telemetry.py` emits an
+`execute_tool` child span per tool invocation:
+
+- `ToolTelemetryMiddleware` is a `FunctionMiddleware` that wraps each tool call in an
+  `ExecuteToolScope` (the A365 observability helper), recording the tool name, arguments, and
+  result, and nesting the span under the active `invoke_agent` span.
+- `RawAgent` ignores agent-level `middleware`, but it **does** run middleware contributed by a
+  context provider. `ToolTelemetryProvider` injects the middleware via
+  `SessionContext.extend_middleware` during `before_run`; `_attach_tool_telemetry()` appends
+  the provider to the agent's `context_providers` after the SDK builds it.
+- The exporter only ships spans whose `gen_ai.operation.name` is a known value
+  (`invoke_agent`/`execute_tool`/`chat`/…), which the scope sets; `tenant_id` and
+  `gen_ai.agent.id` are stamped from the per-turn baggage by the A365 enriching processor.
+
+Telemetry is best-effort: if span setup fails the tool still runs, and a tool exception is
+recorded on the span and re-raised unchanged.
 
 ---
 
@@ -576,11 +606,21 @@ async def custom_capability(self, params: Dict[str, Any]) -> Any:
     pass
 ```
 
-### 2. **Custom MCP Servers**
-Add new MCP servers through the tool registration service:
-```python
-await self.tool_service.add_custom_mcp_server(server_config)
+### 2. **Adding MCP Servers**
+Tool servers are discovered from the Agent 365 platform, with
+[`ToolingManifest.json`](ToolingManifest.json) as the fallback list. To add a server, append
+an entry (server name, URL, scope, audience) to that file:
+```json
+{
+  "mcpServerName": "mcp_CalendarTools",
+  "mcpServerUniqueName": "mcp_CalendarTools",
+  "url": "https://agent365.svc.cloud.microsoft/agents/servers/mcp_CalendarTools",
+  "scope": "McpServers.Calendar.All",
+  "audience": "ea9ffc3e-8a23-4a7d-836d-234d7c7565c1"
+}
 ```
+Then grant the matching `McpServers.*.All` scope in Tenant 2 (see `STEP-BY-STEP.md` step 3.3).
+Newly added servers are traced automatically by the tool-call telemetry above — no code change.
 
 ### 3. **Additional Endpoints**
 Add new HTTP endpoints in the server:
