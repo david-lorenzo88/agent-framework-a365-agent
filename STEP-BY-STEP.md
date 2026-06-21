@@ -95,7 +95,7 @@ first-party constants:
 |---|---|---|
 | Microsoft Graph | `00000003-0000-0000-c000-000000000000` | `Mail.ReadWrite Mail.Send Chat.ReadWrite Files.ReadWrite.All Sites.Read.All ChannelMessage.Read.All ChannelMessage.Send User.Read.All` |
 | Messaging Bot API | `5a807f24-c9de-44ee-a3a7-329e88a00ffc` | `AgentData.ReadWrite` |
-| Agent Tools (MCP) | `ea9ffc3e-8a23-4a7d-836d-234d7c7565c1` | `McpServersMetadata.Read.All McpServers.Mail.All` |
+| Agent Tools (MCP) | `ea9ffc3e-8a23-4a7d-836d-234d7c7565c1` | `McpServersMetadata.Read.All McpServers.Mail.All McpServers.Calendar.All McpServers.Me.All McpServers.Teams.All McpServers.CopilotMCP.All` |
 | Power Platform API | `8578e004-a5c6-46e7-913e-12f58912df43` | `Connectivity.Connections.Read` |
 | Observability API | `9b975845-388f-4429-889e-eab1ef63949c` | `Agent365.Observability.OtelWrite` *(delegated — needed by the FIC telemetry flow)* |
 
@@ -119,15 +119,18 @@ grant() {  # grant <resourceAppId> "<space-separated scopes>" as tenant-wide adm
 }
 
 grant 5a807f24-c9de-44ee-a3a7-329e88a00ffc "AgentData.ReadWrite"
-grant ea9ffc3e-8a23-4a7d-836d-234d7c7565c1 "McpServersMetadata.Read.All McpServers.Mail.All"
+grant ea9ffc3e-8a23-4a7d-836d-234d7c7565c1 "McpServersMetadata.Read.All McpServers.Mail.All McpServers.Calendar.All McpServers.Me.All McpServers.Teams.All McpServers.CopilotMCP.All"
 grant 8578e004-a5c6-46e7-913e-12f58912df43 "Connectivity.Connections.Read"
 grant 9b975845-388f-4429-889e-eab1ef63949c "Agent365.Observability.OtelWrite"
 ```
 
 > **Why these:** `AgentData.ReadWrite` lets the agent get a channel token (otherwise Teams
-> messages return HTTP 500). The MCP scopes power the Mail tools. The **delegated**
-> `Agent365.Observability.OtelWrite` is required because the telemetry exporter uses the
-> SDK's FIC (user-token) flow — the app-role alone is not enough.
+> messages return HTTP 500). The MCP scopes power the tool servers in
+> [`ToolingManifest.json`](ToolingManifest.json) — one scope per server (Mail, Calendar,
+> Me/profile, Teams, M365 Copilot). To add or drop a tool server, edit that manifest and
+> keep this grant in sync (the audience stays the same; only the space-separated scope list
+> changes). The **delegated** `Agent365.Observability.OtelWrite` is required because the
+> telemetry exporter uses the SDK's FIC (user-token) flow — the app-role alone is not enough.
 
 ### 3.4 Verify
 ```bash
@@ -236,7 +239,14 @@ Put both into `deploy/.env.aca`, **bump `IMAGE_TAG`**, and redeploy:
 
 ## 9. Test and verify
 
-- **Teams:** message the agent — it should reply, and (with MCP) answer mail questions.
+- **Teams:** message the agent — it should reply, and (with MCP) answer mail, calendar,
+  profile, and Teams questions, plus M365 Copilot retrieval.
+- **Per-tool spans (container logs):** when the agent calls an MCP tool you should see an
+  `execute_tool` span emitted alongside the LLM `chat` span:
+  ```bash
+  az containerapp logs show -n <<APP_NAME>> -g <<RESOURCE_GROUP>> --tail 120 --type console \
+    | grep -i "Span started: 'execute_tool"
+  ```
 - **Telemetry export (container logs):**
   ```bash
   az containerapp logs show -n <<APP_NAME>> -g <<RESOURCE_GROUP>> --tail 80 --type console \
@@ -268,5 +278,11 @@ These were the non-obvious fixes baked into the code/config so you don't have to
 - **`invoke_agent` span:** the A365 MCP tooling returns a `RawAgent` with no agent-level
   telemetry, so the host emits the `invoke_agent` root span (with the full A365 attribute
   set) itself — required for the admin center / Defender agent-activity views.
+- **`execute_tool` spans:** for the same `RawAgent` reason, individual tool calls aren't traced
+  natively. [`tool_telemetry.py`](tool_telemetry.py) attaches a context provider that injects a
+  function middleware emitting one `execute_tool` child span per tool call (tool name, args,
+  result), nested under `invoke_agent`. The exporter only ships spans whose
+  `gen_ai.operation.name` is a known value (`invoke_agent`/`execute_tool`/`chat`/…), which this
+  satisfies; `tenant_id`/`gen_ai.agent.id` are stamped from baggage by the A365 enricher.
 - **Conditional Access:** if it blocks the consent browser page, use the Graph-direct
   grants in step 3.3.
