@@ -50,6 +50,54 @@ information — always available with no API calls or token acquisition:
 The sample logs these fields at the start of every message turn and injects the display name
 into the LLM system instructions for personalized responses.
 
+## Conversation Memory
+
+The agent keeps conversation context across turns so it can answer follow-up questions
+(e.g. "and what about next week?") instead of treating every message as a fresh start.
+
+**How it works** ([agent.py](agent.py)):
+
+- A per-conversation `AgentSession` is kept in a dictionary keyed by the Teams
+  `activity.conversation.id` (`_get_session`). Each turn loads that conversation's session and
+  passes it to `agent.run(message, session=session)`, so the model receives prior messages.
+- An `InMemoryHistoryProvider` is attached explicitly (`_ensure_history_provider`). Agent
+  Framework only auto-injects a history provider when the agent has **no** context providers —
+  and this sample adds a tool-telemetry context provider — so the history provider must be
+  added explicitly. It stores the running message list in the session's own state.
+
+**Memory is isolated per conversation (per user in 1:1 chats).** In Teams, each user's 1:1
+chat with the agent has its own `conversation.id`, so each user gets a separate `AgentSession`
+and never sees another user's history. A shared group chat or channel thread has a single
+`conversation.id`, so participants there share one conversation history (the expected behavior
+for a shared thread).
+
+> **This sample uses in-memory storage**, which is intentionally simple but has two limits:
+> - **Per-replica:** history lives in the container instance's memory. If the app scales to
+>   multiple replicas, a user could be routed to a replica that doesn't have their earlier history.
+> - **Not durable:** history resets whenever the container restarts or a new revision is deployed.
+
+### Making memory persistent
+
+To survive restarts, scale-out, and redeploys, replace `InMemoryHistoryProvider` with a
+persistent `HistoryProvider` backed by an external store (e.g. Azure Cosmos DB, Redis, or Azure
+Table Storage). Subclass `HistoryProvider` and implement `get_messages` / `save_messages` to
+read and write the conversation's messages keyed by the session/conversation id, then attach
+your provider in `_ensure_history_provider` instead of `InMemoryHistoryProvider`:
+
+```python
+class CosmosHistoryProvider(HistoryProvider):
+    async def get_messages(self, session_id, *, state=None, **kwargs) -> list[Message]:
+        # load messages for `session_id` from your store
+        ...
+
+    async def save_messages(self, session_id, messages, *, state=None, **kwargs) -> None:
+        # append `messages` for `session_id` to your store
+        ...
+```
+
+Because the provider is keyed by the conversation id, the same per-user isolation described
+above is preserved — only the backing store changes.
+
 ## Running the Agent in Microsoft 365 Agents Playground
 
 1. First, select the Microsoft 365 Agents Toolkit icon on the left in the VS Code toolbar.
