@@ -1,13 +1,13 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vdevPreview/MicrosoftTeams.schema.json",
-  "id": "<<AGENT_BLUEPRINT_APP_ID>>",
+  "id": "17ed336d-934c-47c9-8218-d3483f41cb1f",
   "name": {
-    "short": "Agent Framework A365 Agent",
-    "full": "Agent Framework A365 Agent"
+    "short": "Nova",
+    "full": "Nova"
   },
   "description": {
-    "short": "A brief description of what your agent does.",
-    "full": "A comprehensive description of your agent\u0027s capabilities and purpose. Explain what problems it solves, what data it can access, and how users will interact with it. This description helps users understand when and how to use your agent effectively."
+    "short": "For EPPC demo.",
+    "full": "For EPPC demo."
   },
   "icons": {
     "outline": "outline.png",
@@ -17,7 +17,7 @@
   "version": "1.1.4",
   "manifestVersion": "devPreview",
   "developer": {
-    "name": "Microsoft Corporation",
+    "name": "Rafsan Huseynov",
     "mpnId": "",
     "websiteUrl": "https://go.microsoft.com/fwlink/?LinkId=518028",
     "privacyUrl": "https://go.microsoft.com/fwlink/?LinkId=518028",

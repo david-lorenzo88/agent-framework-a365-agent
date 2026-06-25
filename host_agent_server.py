@@ -81,6 +81,22 @@ def _set_invoke_agent_attributes(span, context, user_message: str) -> None:
 
     span.set_attribute("gen_ai.operation.name", "invoke_agent")
 
+    # Mandatory filtering keys for filter_and_partition_by_identity.
+    # Set explicitly here so the exporter sees them even if baggage
+    # propagation through A365SpanProcessor is delayed or unavailable.
+    tenant_id = getattr(getattr(act, "recipient", None), "tenant_id", None)
+    if tenant_id:
+        span.set_attribute("microsoft.tenant.id", tenant_id)
+    # Always use our registered instance ID (A365_AGENT_APP_INSTANCE_ID) so the
+    # FIC token and span identity match. recipient.agentic_app_id can return a
+    # different instance ID (e.g. another registered agent sharing this endpoint).
+    agent_instance_id = (
+        environ.get("A365_AGENT_APP_INSTANCE_ID")
+        or getattr(getattr(act, "recipient", None), "agentic_app_id", None)
+    )
+    if agent_instance_id:
+        span.set_attribute("gen_ai.agent.id", agent_instance_id)
+
     conv = getattr(getattr(act, "conversation", None), "id", None)
     if conv:
         span.set_attribute("gen_ai.conversation.id", conv)

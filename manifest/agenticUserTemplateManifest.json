@@ -1,6 +1,6 @@
 {
   "id": "7b0926a6-c4ee-445a-a913-bd054594bd09",
   "schemaVersion": "0.1.0-preview",
-  "agentIdentityBlueprintId": "<<AGENT_BLUEPRINT_APP_ID>>",
+  "agentIdentityBlueprintId": "17ed336d-934c-47c9-8218-d3483f41cb1f",
   "communicationProtocol": "activityProtocol"
 }
